@@ -32,6 +32,7 @@ mpDraw = mp.solutions.drawing_utils
 def process_frame(img):
     
     # 记录该帧开始处理的时间
+    # 用于FPS的计算
     start_time = time.time()
     
     # 获取图像宽高
@@ -45,21 +46,51 @@ def process_frame(img):
     # 将RGB图像输入模型，获取预测结果
     results = hands.process(img_RGB)
 
+    #识别左右手，和他的置信度
+    # print(results.multi_handedness)
+
+    #[classification {
+    #   index: 1
+    #   score: 0.9420602321624756
+    #   label: "Right"
+    # }
+
+    #手所在的位置
+    # print(results.multi_hand_landmarks)
+    # landmark
+    # {
+    #     x: 0.4599137306213379
+    #     y: 1.0057446956634521
+    #     z: -0.05328677222132683
+    # }
+
     if results.multi_hand_landmarks: # 如果有检测到手
 
         handness_str = ''
         index_finger_tip_str = ''
+
+
+        #hand_idx 就是i
         for hand_idx in range(len(results.multi_hand_landmarks)):
 
             # 获取该手的21个关键点坐标
             hand_21 = results.multi_hand_landmarks[hand_idx]
 
+            #画线
             # 可视化关键点及骨架连线
+            # mpDraw.draw_landmarks(要画的图，手的所有关键点坐标，手部关键点模型 用什么连线)
             mpDraw.draw_landmarks(img, hand_21, mp_hands.HAND_CONNECTIONS)
 
             # 记录左右手信息
+            #results.multi_handedness[hand_idx].classification[0].label =  记录左手还是右手
             temp_handness = results.multi_handedness[hand_idx].classification[0].label
-            handness_str += '{}:{} '.format(hand_idx, temp_handness)
+
+            #>>> "{0} {1}".format("hello", "world")  # 设置指定位置
+            # 'hello world'
+
+            #hand_idx = i
+            #results.multi_handedness[hand_idx].classification[0].label =  记录左手还是右手
+            handness_str += '{0}:{1} '.format(hand_idx, temp_handness)
 
             # 获取手腕根部深度坐标
             cz0 = hand_21.landmark[0].z
@@ -67,15 +98,20 @@ def process_frame(img):
             for i in range(21): # 遍历该手的21个关键点
 
                 # 获取3D坐标
+                #图片中的高度和宽度
                 cx = int(hand_21.landmark[i].x * w)
                 cy = int(hand_21.landmark[i].y * h)
+                #cz当前检测的z坐标
                 cz = hand_21.landmark[i].z
+                #cz0掌根的Z轴，cz当前检测的z坐标
                 depth_z = cz0 - cz
 
                 # 用圆的半径反映深度大小
                 radius = max(int(6 * (1 + depth_z*5)), 0)
 
                 if i == 0: # 手腕
+                    # cv2.circle(img, (cx, cy), radius, (0, 0, 255), -1)
+                    #图片，坐标，圆的半径，颜色，线的粗细
                     img = cv2.circle(img,(cx,cy), radius, (0,0,255), -1)
                 if i == 8: # 食指指尖
                     img = cv2.circle(img,(cx,cy), radius, (193,182,255), -1)
@@ -91,16 +127,24 @@ def process_frame(img):
                     img = cv2.circle(img,(cx,cy), radius, (223,155,60), -1)
 
         scaler = 1
+
+        # 在图像上写数值，参数依次为：图片，添加的文字，左上角坐标，字体，字体大小，颜色，字体粗细
+        #            #hand_idx = i
+        #results.multi_handedness[hand_idx].classification[0].label =  记录左手还是右手
+        # handness_str += '{0}:{1} '.format(hand_idx, temp_handness)
+
         img = cv2.putText(img, handness_str, (25 * scaler, 100 * scaler), cv2.FONT_HERSHEY_SIMPLEX, 1.25 * scaler, (255, 0, 255), 2 * scaler)
         img = cv2.putText(img, index_finger_tip_str, (25 * scaler, 150 * scaler), cv2.FONT_HERSHEY_SIMPLEX, 1.25 * scaler, (255, 0, 255), 2 * scaler)
         
         # 记录该帧处理完毕的时间
+        #下面都是为了把FPS写在窗口上
         end_time = time.time()
         # 计算每秒处理图像帧数FPS
         FPS = 1/(end_time - start_time)
 
-        # 在图像上写FPS数值，参数依次为：图片，添加的文字，左上角坐标，字体，字体大小，颜色，字体粗细
+
         scaler = 1
+        # 在图像上写FPS数值，参数依次为：图片，添加的文字，左上角坐标，字体，字体大小，颜色，字体粗细
         img = cv2.putText(img, 'FPS  '+str(int(FPS)), (25 * scaler, 50 * scaler), cv2.FONT_HERSHEY_SIMPLEX, 1.25 * scaler, (255, 0, 255), 2 * scaler)
     return img
 

@@ -16,14 +16,12 @@ import time
 # # 导入手部关键点模型
 
 # 导入solution
-
-
 mp_hands = mp.solutions.hands
 # 导入模型
 hands = mp_hands.Hands(static_image_mode=False,        # 是静态图片还是连续视频帧
                        max_num_hands=4,                # 最多检测几只手
-                       min_detection_confidence=0.5,   # 置信度阈值
-                       min_tracking_confidence=0.5)    # 追踪阈值
+                       min_detection_confidence=0.5,   # 置信度阈值 0.7 比较好
+                       min_tracking_confidence=0.5)    # 追踪阈值 默认就好
 
 # 导入绘图函数
 mpDraw = mp.solutions.drawing_utils
@@ -39,10 +37,17 @@ def process_frame(img):
     # 将RGB图像输入模型，获取预测结果
     results = hands.process(img_RGB)
 
-    if results.multi_hand_landmarks: # 如果有检测到手
+    if results.multi_hand_landmarks: # 如果有检测到手  results.multi_hand_landmarks里面有值
         # 遍历每一只检测出的手
-        for hand_idx in range(len(results.multi_hand_landmarks)):
-            hand_21 = results.multi_hand_landmarks[hand_idx] # 获取该手的所有关键点坐标
+        for i in range(len(results.multi_hand_landmarks)):
+            hand_21 = results.multi_hand_landmarks[i] # 获取该手的所有关键点坐标
+            #hand_21 :
+            #landmark {
+            #   x: 0.5877419710159302
+            #   y: 0.6618870496749878
+            #   z: -0.015523000620305538
+            # }
+            # mpDraw.draw_landmarks(要画的图，手的所有关键点坐标，手部关键点模型 用什么连线)
             mpDraw.draw_landmarks(img, hand_21, mp_hands.HAND_CONNECTIONS) # 可视化
             
     return img
