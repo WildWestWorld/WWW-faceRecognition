@@ -1,34 +1,102 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+
 # # 导入工具包
 
 # opencv-python
 import cv2
 # mediapipe人工智能工具包
 import mediapipe as mp
+import pyautogui
+
 # 进度条库
 from tqdm import tqdm
 # 时间库
 import time
 
-# # 导入手部关键点模型
+# # 导入模型
 
 # 导入solution
 mp_hands = mp.solutions.hands
 # 导入模型
 hands = mp_hands.Hands(static_image_mode=False,  # 是静态图片还是连续视频帧
-                       max_num_hands=4,  # 最多检测几只手
-                       min_detection_confidence=0.5,  # 置信度阈值 0.7 比较好
-                       min_tracking_confidence=0.5)  # 追踪阈值 默认就好
-
+                       max_num_hands=1,  # 最多检测几只手
+                       min_detection_confidence=0.7,  # 置信度阈值
+                       min_tracking_confidence=0.5)  # 追踪阈值
 # 导入绘图函数
 mpDraw = mp.solutions.drawing_utils
 
 
+def MotionDetection(results):
+    handOne=results.multi_hand_landmarks[0];
+    #计算斜率
+    #中指
+    kZ=(abs(handOne.landmark[8].y-handOne.landmark[0].y))/(abs(handOne.landmark[8].x-handOne.landmark[0].x))
+    #拇指
+    kM=(((handOne.landmark[4].y-handOne.landmark[0].y))/((handOne.landmark[4].x-handOne.landmark[0].x)))
+
+    print(kZ,kM)
+
+
+    # 因为使用opencv的方向，高度是从左上角算的。左上角是0,0,这与现实世界是不同的
+    #y越大就位置越往下
+
+    # if handOne.landmark[8].y>handOne.landmark[6].y and handOne.landmark[5].y>handOne.landmark[8].y:
+    #     print("食指弯曲")
+    #     pyautogui.hotkey('win', 'd')
+    #     time.sleep(0.2)
+
+    # if handOne.landmark[8].y > handOne.landmark[6].y \
+    # and handOne.landmark[12].y > handOne.landmark[10].y\
+    # and handOne.landmark[16].y > handOne.landmark[14].y\
+    # and handOne.landmark[20].y > handOne.landmark[18].y\
+    # and handOne.landmark[5].y>handOne.landmark[8].y\
+    # and handOne.landmark[9].y>handOne.landmark[12].y \
+    # and handOne.landmark[13].y > handOne.landmark[16].y \
+    # and handOne.landmark[17].y > handOne.landmark[20].y:
+    #
+    #
+    #     print("握拳")
+    #     pyautogui.hotkey('win', 'd')
+    #     time.sleep(0.5)
+
+
+    if handOne.landmark[8].y > handOne.landmark[6].y \
+    and handOne.landmark[12].y > handOne.landmark[10].y \
+    and handOne.landmark[16].y > handOne.landmark[14].y \
+    and handOne.landmark[20].y > handOne.landmark[18].y\
+    and handOne.landmark[0].y>handOne.landmark[4].y\
+    and 4.5>kM>0.8\
+    and 3>kZ>1:
+    # and kZ>2.3\
+        print("反手握拳")
+        pyautogui.hotkey('win', 'd')
+        time.sleep(0.5)
+
+    if handOne.landmark[8].y > handOne.landmark[6].y \
+    and handOne.landmark[12].y > handOne.landmark[10].y \
+    and handOne.landmark[16].y > handOne.landmark[14].y \
+    and handOne.landmark[20].y > handOne.landmark[18].y\
+    and handOne.landmark[0].y>handOne.landmark[4].y\
+    and abs(kM)>5\
+    and kZ>10:
+        print("正手握拳")
+        pyautogui.hotkey('win', 'd')
+        time.sleep(0.5)
+
+    # if handOne.landmark[8].y > handOne.landmark[6].y \
+    # and handOne.landmark[12].y > handOne.landmark[10].y \
+    # and handOne.landmark[16].y > handOne.landmark[14].y \
+    # and handOne.landmark[20].y > handOne.landmark[18].y\
+    # and handOne.landmark[0].y>handOne.landmark[4].y\
+    # and kM>1.5 and kZ>2.2:
+    # # and kZ>2.3\
+    #     print("正手横握")
+    #     pyautogui.hotkey('win', 'd')
+    #     time.sleep(0.5)
 # # 处理单帧的函数
 
-# 处理帧函数
 def process_frame(img):
     # 记录该帧开始处理的时间
     # 用于FPS的计算
@@ -36,7 +104,10 @@ def process_frame(img):
 
     # 获取图像宽高
     h, w = img.shape[0], img.shape[1]
-    img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+
+    # 水平镜像翻转图像，使图中左右手与真实左右手对应
+    # 参数 1：水平翻转，0：竖直翻转，-1：水平和竖直都翻转
+    img = cv2.flip(img, 1)
     # BGR转RGB
     img_RGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     # 将RGB图像输入模型，获取预测结果
@@ -61,6 +132,7 @@ def process_frame(img):
     # }
 
     if results.multi_hand_landmarks:  # 如果有检测到手
+        MotionDetection(results)
 
         handness_str = ''
         index_finger_tip_str = ''
@@ -78,13 +150,7 @@ def process_frame(img):
 
             # 记录左右手信息
             # results.multi_handedness[hand_idx].classification[0].label =  记录左手还是右手
-
             temp_handness = results.multi_handedness[hand_idx].classification[0].label
-
-            if temp_handness=="Left":
-                temp_handness="Right"
-            elif temp_handness=="Right":
-                temp_handness = "Left"
 
             # >>> "{0} {1}".format("hello", "world")  # 设置指定位置
             # 'hello world'
@@ -109,11 +175,6 @@ def process_frame(img):
 
                 # 用圆的半径反映深度大小
                 radius = max(int(6 * (1 + depth_z * 5)), 0)
-
-                if i == 0:  # 手腕
-                    # cv2.circle(img, (cx, cy), radius, (0, 0, 255), -1)
-                    # 图片，坐标，圆的半径，颜色，线的粗细
-                    img = cv2.circle(img, (cx, cy), radius, (0, 0, 255), -1)
 
                 if i == 4:  # 拇指指尖
                     img = cv2.circle(img, (cx, cy), radius, (161 , 47 , 47), -1)
@@ -141,6 +202,9 @@ def process_frame(img):
 
         scaler = 1
 
+
+
+
         # 在图像上写数值，参数依次为：图片，添加的文字，左上角坐标，字体，字体大小，颜色，字体粗细
         #            #hand_idx = i
         # results.multi_handedness[hand_idx].classification[0].label =  记录左手还是右手
@@ -148,8 +212,7 @@ def process_frame(img):
 
         img = cv2.putText(img, handness_str, (25 * scaler, 100 * scaler), cv2.FONT_HERSHEY_SIMPLEX, 1.25 * scaler,
                           (255, 0, 255), 2 * scaler)
-
-        img = cv2.putText(img, index_finger_tip_str, (25 * scaler, 150* scaler), cv2.FONT_HERSHEY_SIMPLEX,
+        img = cv2.putText(img, index_finger_tip_str, (25 * scaler, 150 * scaler), cv2.FONT_HERSHEY_SIMPLEX,
                           1.25 * scaler, (255, 0, 255), 2 * scaler)
 
         # 记录该帧处理完毕的时间
@@ -168,37 +231,37 @@ def process_frame(img):
 # # 调用摄像头获取每帧（模板）
 
 
+
 # 导入opencv-python
 import cv2
 import time
-import time
-import mss
-import numpy
 
-sct = mss.mss()
+# 获取摄像头，传入0表示获取系统默认摄像头
+cap = cv2.VideoCapture(0)
 
-monitor = {'left': 290, 'top': 0, 'width': 960, 'height': 960}
-
+# 打开cap
+cap.open(0)
 
 # 无限循环，直到break被触发
-while True:
+while cap.isOpened():
     # 获取画面
-    img = sct.grab(monitor=monitor);
-
-    imgArr = numpy.array(img)
+    success, frame = cap.read()
+    if not success:
+        break
 
     ## !!!处理帧函数
-    frame = process_frame(imgArr)
-
-
-
+    frame = process_frame(frame)
 
     # 展示处理后的三通道图像
     cv2.imshow('my_window', frame)
 
-    pushKeyboard = cv2.waitKey(1);
+    if cv2.waitKey(1) in [ord('q'), 27]:  # 按键盘上的q或esc退出（在英文输入法下）
+        break
 
-    if (pushKeyboard % 256 == 27):
-        cv2.destroyAllWindows();
-        exit("停止截屏")
-        break;
+# 关闭摄像头
+cap.release()
+
+# 关闭图像窗口
+cv2.destroyAllWindows()
+
+

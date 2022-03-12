@@ -37,7 +37,7 @@ def process_frame(img):
     img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
     img_RGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     # 将RGB图像输入模型，获取预测结果
-    results = pose.process(img_RGB)
+    results = pose.process(img)
 
     if results.pose_landmarks:  # 如果有检测到手  results.multi_hand_landmarks里面有值
 

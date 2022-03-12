@@ -11,17 +11,13 @@ import mediapipe as mp
 from tqdm import tqdm
 # 时间库
 import time
-
-# # 导入手部关键点模型
+import numpy as np
 
 # 导入solution
-mp_pose = mp.solutions.pose
+mp_pose = mp.solutions.selfie_segmentation
 # 导入模型
-pose = mp_pose.Pose(static_image_mode=False,  # 是静态图片还是连续视频帧
-                     model_complexity=1, #选择人体姿态关键点检测模型，0性能差但是快，2性能好但是慢，1最平均
-                     smooth_landmarks=True, #是否平滑关键点
-                     min_detection_confidence=0.5,  # 置信度阈值 0.7 比较好
-                     min_tracking_confidence=0.5)  # 追踪阈值 默认就好
+SS = mp_pose.SelfieSegmentation(model_selection=0  #选择几号模型
+                                )
 
 # 导入绘图函数
 mpDraw = mp.solutions.drawing_utils
@@ -37,22 +33,43 @@ def process_frame(img):
     # BGR转RGB
     img_RGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     # 将RGB图像输入模型，获取预测结果
-    results = pose.process(img_RGB)
+    results = SS.process(img_RGB)
 
-    # if results.pose_landmarks:  # 如果有检测到手  results.multi_hand_landmarks里面有值
-    #     # 遍历每一只检测出的手
-    #     for i in range(len(results.pose_landmarks)):
-    pose_42 = results.pose_landmarks  # 获取该手的所有关键点坐标
-    #         # hand_21 :
-    #         # landmark {
-    #         #   x: 0.5877419710159302
-    #         #   y: 0.6618870496749878
-    #         #   z: -0.015523000620305538
-    #         # }
-    #         # mpDraw.draw_landmarks(要画的图，手的所有关键点坐标，手部关键点模型 用什么连线)
-    mpDraw.draw_landmarks(img, pose_42, mp_pose.POSE_CONNECTIONS)  # 可视化
 
-    return img
+    mask = results.segmentation_mask
+    #将结果里面的数都变成无符号整形，作用是让那些小数都消失，让他里面的书都变成非0即1的
+    #此时的mask是一张平面图，而且是单通道的我们需要把他变成三通道的
+
+
+    #把单通道变成三通道了，就是把3个mask堆叠到一块
+    mask_3=np.stack((mask,mask,mask),axis=-1)
+    #把mask_3 里面的数变成逻辑符号True/False
+    #后面的np.where 会根据true或者false来
+    mask_3=mask_3>0.02
+
+
+#开始更换背景颜色
+    #新建一张新的图片
+    mask_bgc=[0,200,0]
+    # mask_bgc=[255,255,255]
+
+
+    #搞一个和imgshape形状的全0序列
+    img_without_bgc=np.zeros(img.shape,dtype=np.uint8)
+    #把全0的序列数据替换为mask_bgc
+    img_without_bgc[0:]=mask_bgc
+
+    #np.where np中的三目运算符
+    #mask若为true 该位置就是img
+    #若为false 该位置就是img_without_bgc
+    img_without_bgc=np.where(mask_3,img,img_without_bgc)
+
+    #支线：获取扣除图像后的背景
+    img_without_person=np.where(~mask_3,img,img_without_bgc)
+
+
+
+    return img_without_bgc
 
 
 

@@ -51,9 +51,6 @@ def process_frame(img):
 
 # # 调用摄像头获取每帧（模板）
 
-# 调用摄像头逐帧实时处理模板
-# 不需修改任何代码，只需修改process_frame函数即可
-# 同济子豪兄 2021-7-8
 
 # 导入opencv-python
 import cv2
